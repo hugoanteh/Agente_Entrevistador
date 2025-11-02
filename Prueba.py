@@ -3,8 +3,8 @@ from openai import OpenAI #OpenAI Library
 import discord, os
 
 load_dotenv()
-OPENAI_KEY=os.getenv('OPENAI_KEY')
-oa_client=OpenAI(api_key=OPENAI_KEY)
+OPENAI_KEY=os.getenv('OPENAI_API_KEY')
+oa_client=OpenAI(api_key=OPENAI_API_KEY)
 
 #Ask openai - respond like a interviewer
 
