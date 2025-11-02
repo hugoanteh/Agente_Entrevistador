@@ -1,7 +1,7 @@
 name: Run Discord Bot (test)
 
 on:
-  workflow_dispatch:  # Lo ejecutas manualmente desde la pestaña "Actions"
+  workflow_dispatch:  # lo ejecutas manualmente desde Actions
 
 jobs:
   run:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Start bot
         env:
-          TOKEN: ${{ secrets.TOKEN }}   # <-- aquí entra tu Secret
+          TOKEN: ${{ secrets.TOKEN }}   # inyecta tu Secret TOKEN
         run: |
-          python bot.py
-        timeout-minutes: 350  # (~6 horas máx. por job)
+          python prueba.py              # <-- tu archivo
+        timeout-minutes: 350            # ~6h por ejecución (luego se apaga)
