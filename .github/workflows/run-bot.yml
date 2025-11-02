@@ -26,5 +26,5 @@ jobs:
         env:
           TOKEN: ${{ secrets.TOKEN }}   # inyecta tu Secret TOKEN
         run: |
-          python prueba.py              # <-- tu archivo
+          python Prueba.py              # <-- tu archivo
         timeout-minutes: 350            # ~6h por ejecución (luego se apaga)
