@@ -1,31 +1,25 @@
-# Prueba.py
 from dotenv import load_dotenv
 from openai import OpenAI
-import discord
-import os
+import discord, os, traceback
 
-# Carga variables de entorno (.env en local / Secrets en Actions)
 load_dotenv()
 
-# --- OpenAI ---
-# Usa la clave estándar del entorno: OPENAI_API_KEY (configúrala en GitHub Secrets)
-oa_client = OpenAI()  # no pases api_key aquí; la toma de OPENAI_API_KEY automáticamente
+oa_client = OpenAI()
 
-def call_openai(question: str) -> str:
-    """Pide a OpenAI que responda como entrevistador."""
-    q = (question or "").strip()
-    if not q:
-        return "Por favor, escribe tu pregunta después de $question."
+# Modelo preferido y alternativa
+PRIMARY_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")       # puedes dejar "gpt-4o"
+FALLBACK_MODEL = os.getenv("OPENAI_FALLBACK", "gpt-4o-mini")
 
+def ask_openai(model: str, question: str) -> str:
     completion = oa_client.chat.completions.create(
-        model="gpt-4o",
+        model=model,
         messages=[
             {
                 "role": "user",
                 "content": (
                     "Responde como un ENTREVISTADOR profesional, con tono cordial, "
-                    "guiando la conversación y repreguntando de forma breve cuando aplique. "
-                    f"Pregunta del candidato: {q}"
+                    "guiando la conversación y repreguntando brevemente cuando aplique. "
+                    f"Pregunta del candidato: {question.strip()}"
                 ),
             }
         ],
@@ -33,50 +27,64 @@ def call_openai(question: str) -> str:
     )
     return completion.choices[0].message.content
 
-# --- Discord ---
-intents = discord.Intents.default()
-intents.message_content = True  # activar también en el Portal de Discord (Bot → Message Content Intent)
+def call_openai(question: str) -> str:
+    q = (question or "").strip()
+    if not q:
+        return "Por favor, escribe tu pregunta después de $question."
 
-client = discord.Client(intents=intents)
+    # Intento con el modelo principal; si falla por permiso/acceso, probamos el fallback.
+    try:
+        return ask_openai(PRIMARY_MODEL, q)
+    except Exception as e:
+        # Logs completos al runner (Actions)
+        print("=== OpenAI ERROR (primary) ===")
+        print("Model:", PRIMARY_MODEL)
+        print("Type:", e.__class__.__name__)
+        print("Error:", repr(e))
+        traceback.print_exc()
 
-@client.event
-async def on_ready():
-    print(f"✅ Bot conectado como: {client.user}")
+        # Si es un problema típico de acceso al modelo, probamos el fallback una sola vez
+        err_text = str(e).lower()
+        if any(t in err_text for t in ["permission", "access", "not found", "model", "404", "403"]):
+            try:
+                print("Reintentando con fallback:", FALLBACK_MODEL)
+                return ask_openai(FALLBACK_MODEL, q)
+            except Exception as e2:
+                print("=== OpenAI ERROR (fallback) ===")
+                print("Model:", FALLBACK_MODEL)
+                print("Type:", e2.__class__.__name__)
+                print("Error:", repr(e2))
+                traceback.print_exc()
+                return "No tengo acceso a los modelos configurados. Verifica que tu API key tenga permisos y crédito."
+        # Otros errores (401/429, etc.)
+        if any(t in err_text for t in ["unauthorized", "invalid api key", "billing", "quota", "rate limit", "401", "429"]):
+            return "La API de OpenAI reporta un problema de credenciales, cuota o facturación."
+
+        return "Hubo un problema consultando a OpenAI. Intenta de nuevo en unos segundos."
+
+# … (intents y client como ya los tienes) …
 
 @client.event
 async def on_message(message: discord.Message):
-    # No responderse a sí mismo
     if message.author.id == client.user.id:
         return
 
     content = (message.content or "").strip()
 
-    # Comando simple
     if content.startswith("$hello"):
         await message.channel.send("Hello!")
         return
 
-    # Comando con pregunta a OpenAI: $question <texto>
-    if content.startswith("$question"):
-        # Extrae todo lo que viene después de "$question"
-        user_question = content[len("$question"):].strip()
-
-        try:
-            response = call_openai(user_question)
-        except Exception as e:
-            # Log para diagnóstico en Actions
-            print("OpenAI error:", repr(e))
-            response = "Hubo un problema consultando a OpenAI. Intenta de nuevo en unos segundos."
-
-        await message.channel.send(response)
+    # Diagnóstico rápido
+    if content.startswith("$diag"):
+        await message.channel.send(
+            f"Modelo primario: `{PRIMARY_MODEL}` | Fallback: `{FALLBACK_MODEL}`\n"
+            f"API key presente: {'OK' if os.getenv('OPENAI_API_KEY') else 'NO'}"
+        )
         return
 
-# --- Token Discord ---
-token = os.getenv("TOKEN")
-if not token:
-    raise RuntimeError("No se recibió TOKEN desde el entorno. Revisa Settings → Secrets → Actions → TOKEN.")
-
-print("TOKEN leído desde entorno:", "OK" if token else "NO ENCONTRADO")
-print("OPENAI_API_KEY presente:", "OK" if os.getenv("OPENAI_API_KEY") else "NO ENCONTRADO")
-
-client.run(token)
+    if content.startswith("$question"):
+        user_q = content[len("$question"):].strip()
+        resp = call_openai(user_q)
+        await message.channel.send(resp)
+        return
