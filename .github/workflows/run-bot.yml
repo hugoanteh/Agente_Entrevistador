@@ -1,0 +1,30 @@
+name: Run Discord Bot (test)
+
+on:
+  workflow_dispatch:  # Lo ejecutas manualmente desde la pestaña "Actions"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start bot
+        env:
+          TOKEN: ${{ secrets.TOKEN }}   # <-- aquí entra tu Secret
+        run: |
+          python bot.py
+        timeout-minutes: 350  # (~6 horas máx. por job)
