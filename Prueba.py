@@ -1,26 +1,25 @@
 from dotenv import load_dotenv
-import discord
-import os
+import discord, os
 
-#load enviroment variables from .env file
 load_dotenv()
-
-#Set up intents
-Intents = discord.Intents.deafult()
-intents.message_content = True #Ensure that your bot can read message content
+intents = discord.Intents.default()
+intents.message_content = True
 
 client = discord.Client(intents=intents)
 
 @client.event
 async def on_ready():
-  print('We have logged in as {0.user}'.format(client))
+    print(f'✅ Bot conectado como: {client.user}')
 
 @client.event
 async def on_message(message):
-  if message.author == client.user:
-    return
+    if message.author.id == client.user.id:
+        return
+    if message.content.startswith('$hello'):
+        await message.channel.send('Hello!')
 
-  if message.content.startswith('$hello'):
-    await message.channel.send('Hello!')
+token = os.getenv('TOKEN')
+if not token:
+    raise RuntimeError("No se recibió TOKEN desde el entorno (revisa Secrets)")
 
-client.run(os.getenv('TOKEN'))
+client.run(token)
