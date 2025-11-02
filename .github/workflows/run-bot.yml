@@ -1,13 +1,14 @@
 name: Run Discord Bot (test)
 
 on:
-  workflow_dispatch:  # lo ejecutas manualmente desde Actions
+  workflow_dispatch:  # lo ejecutas manualmente desde la pestaña Actions
 
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,7 +25,8 @@ jobs:
 
       - name: Start bot
         env:
-          TOKEN: ${{ secrets.TOKEN }}   # inyecta tu Secret TOKEN
+          TOKEN: ${{ secrets.TOKEN }}                 # Token del bot de Discord
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Clave de OpenAI (empieza con sk-)
         run: |
-          python Prueba.py              # <-- tu archivo
-        timeout-minutes: 350            # ~6h por ejecución (luego se apaga)
+          python Prueba.py                            # Si tu archivo se llama distinto, cámbialo aquí
+        timeout-minutes: 350
